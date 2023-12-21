@@ -35,6 +35,3 @@ Exécutez client.py pour commencer à interagir avec les serveurs.
 
 Assurez-vous que les ports utilisés par les serveurs ne sont pas bloqués ou déjà utilisés sur votre système.
 Le système utilise des adresses IP locales pour la communication, donc il est conçu pour fonctionner sur un réseau local.
-
-## Contact
-Pour toute question ou assistance supplémentaire, veuillez contacter le mainteneur du projet.
