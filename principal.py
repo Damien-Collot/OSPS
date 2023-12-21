@@ -96,15 +96,5 @@ def serveur_principal(valeur_shared):
 
 
 def startServer():
-    p = multiprocessing.Process(target=connect_to_watchdog)
-
-    valeur_shared = multiprocessing.Value('i', 0)
-
-    # Lancement du serveur secondaire avec fork
-    multiprocessing.Process(target=serveur_secondaire, args=(valeur_shared,)).start()
-    p.start()
-
-    serveur_principal(valeur_shared)
-
-    p.join()
+    print("Ce script doit être exécuté via le watchdogs")
 
