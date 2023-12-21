@@ -1,9 +1,12 @@
+# principal.py: Script pour le serveur principal gérant les connexions client et la communication avec le serveur secondaire.
+
 import os
 import time
 import socket
 import multiprocessing
 from secondaire import serveur_secondaire
 
+# Configuration des adresses et ports
 HOST = '127.0.0.1'
 PORT = 65432
 PATH_TO_DWTUBE = "dwtube1"
@@ -12,14 +15,16 @@ NUM_EXCHANGES = 2
 CLIENT_PORT = 2222
 SECONDARY_PORT = 2223
 
+# Création de tubes nommés (pipes) si non existants
 if not os.path.exists(PATH_TO_DWTUBE):
     os.mkfifo(PATH_TO_DWTUBE)
 
 if not os.path.exists(PATH_TO_WDTUBE):
     os.mkfifo(PATH_TO_WDTUBE)
 
+
 def connect_to_watchdog():
-    print('PArle watchdog')
+    """ Maintient une connexion avec le service watchdog. """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         while True:
@@ -35,51 +40,42 @@ def connect_to_watchdog():
 
 
 def serveur_principal(valeur_shared):
+    """ Gère le serveur principal, accepte les connexions client et communique avec le serveur secondaire. """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((HOST, 2222))
+            server_socket.bind((HOST, CLIENT_PORT))
             server_socket.listen()
             print("Serveur principal en attente d'une connexion client...")
+
             while True:
                 client_conn, client_addr = server_socket.accept()
                 with client_conn:
                     print(f"Client connecté depuis {client_addr}")
                     request_type = client_conn.recv(1024).decode()
-                    if request_type == "requetetype1" or request_type == "requetetype2":
-                        # Informer le client du port du serveur secondaire.
+
+                    if request_type in ["requetetype1", "requetetype2"]:
                         client_conn.sendall(str(SECONDARY_PORT).encode())
                     else:
                         print(f"Requête non reconnue: {request_type}")
                         client_conn.close()
                         continue
 
-
-                    # Communication avec le serveur secondaire une fois que le client est connecté
+                    # Communication avec le serveur secondaire
                     with open(PATH_TO_DWTUBE, "w") as dwtube, open(PATH_TO_WDTUBE, "r") as wdtube:
-                        # Reçoit le chiffre du client
                         chiffre = int(client_conn.recv(1024).decode())
-                        
-                        # Envoit le chiffre au serveur secondaire via le pipe
-                        print(f"Envoi du chiffre/nombre {chiffre} par le pipe.\n")
                         dwtube.write(f"{chiffre}\n")
                         dwtube.flush()
 
-                        # Envoit le chiffre au serveur secondaire via la mémoire partagée
-                        print(f"Envoi du chiffre/nombre {chiffre} par la mémoire partagée.\n")
                         valeur_shared.value = chiffre
-                        
-                        # Reçoit le chiffre mis à jour du serveur secondaire via le pipe
+
                         chiffre_mis_a_jour_pipe = int(wdtube.readline().strip())
-                        print(f"Chiffre/nombre {chiffre_mis_a_jour_pipe} reçu par le pipe.\n")
-                        
-                        # Utilise la valeur mise à jour de la mémoire partagée
                         chiffre_mis_a_jour_shared_memory = valeur_shared.value
-                        print(f"Chiffre/nombre {chiffre_mis_a_jour_shared_memory} reçu par la mémoire partagée.\n")
-                        
-                        # Envoie les résultats au client
-                        client_conn.sendall(f"Pipe: {chiffre_mis_a_jour_pipe}, Shared Memory: {chiffre_mis_a_jour_shared_memory}".encode())
-                        
+
+                        client_conn.sendall(
+                            f"Pipe: {chiffre_mis_a_jour_pipe}, Shared Memory: {chiffre_mis_a_jour_shared_memory}".encode())
+
+                        # Attente de la confirmation de déconnexion du client du serveur secondaire
                         while True:
                             confirmation = wdtube.readline().strip()
                             if confirmation == "client_deconnected":
@@ -91,10 +87,14 @@ def serveur_principal(valeur_shared):
 
         if os.path.exists(PATH_TO_WDTUBE):
             os.remove(PATH_TO_WDTUBE)
-    except:
-        print("Error with principal server")
+    except Exception as e:
+        print(f"Erreur survenue dans le serveur principal: {e}")
 
 
 def startServer():
-    print("Ce script doit être exécuté via le watchdogs")
+    """ Fonction pour démarrer le serveur lorsqu'il est exécuté comme script principal. """
+    print("Ce script doit être exécuté via le watchdog")
 
+
+if __name__ == '__main__':
+    startServer()
