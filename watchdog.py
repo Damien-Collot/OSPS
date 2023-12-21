@@ -1,7 +1,7 @@
 import socket
 import time
 import multiprocessing
-from principal import serveur_principal
+from principal import startServer
 
 HOST = '127.0.0.1'
 PORT = 65432
@@ -13,24 +13,20 @@ def watchdog_server():
         s.bind((HOST, PORT))
         s.listen()
         print("Watchdog: Écoute des connexions...")
+        multiprocessing.Process(target=startServer).start()
         conn, addr = s.accept()
         with conn:
             print(f"Watchdog: Connecté à {addr}")
             while True:
                 conn.sendall(b'ping')
-                print("Watchdog: Ping envoyé. Attente du Pong...")
                 try:
                     data = conn.recv(1024)
                 except ConnectionResetError:
-                    print("Watchdog: La connexion a été réinitialisée par le serveur principal.")
+                    multiprocessing.Process(target=startServer).start()
                     break
                 if not data:
-                    print("Watchdog: Connexion perdue avec le serveur principal.")
+                    multiprocessing.Process(target=startServer).start()
                     break
-                elif data == b'pong':
-                    print("Watchdog: Pong reçu du serveur principal.")
-                else:
-                    print(f"Watchdog: Donnée inattendue reçue : {data}")
                 time.sleep(CHECK_INTERVAL)
 
 
